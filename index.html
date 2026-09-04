@@ -254,7 +254,7 @@
         <div class="sub" id="backHint" style="display:none">想重新来过？</div>
         <button id="btnBackMain" class="ghost" style="display:none;min-width:180px">回到公共演示账本</button>
       </div>
-      <p class="hint" style="margin-top:6px">独立账本 = 在云端新建两张专属数据表（编号-流水 + 编号-设置），你的数据与别人互不可见；把页面地址或账本编号发给另一台设备打开，即同一本账。</p>
+      <p class="hint" style="margin-top:6px">独立账本 = 在云端新建两张专属数据表（编号-流水 + 编号-设置），流水默认空数据开始、时薪参数自动带入，你的数据与别人互不可见；把页面地址或账本编号发给另一台设备打开，即同一本账。</p>
       <p class="hint" style="margin-top:10px" id="retentionNote"></p>
     </section>
     <section>
@@ -817,19 +817,17 @@ function switchLedger(code){
 }
 $("btnNewBucket").onclick = async ()=>{
   if ($("btnNewBucket").disabled) return;
-  const carry = CONFIG.ledger==="main";
-  const ok = await uiConfirm("创建独立账本？\n将在云端新建你专属的两张数据表（流水 + 设置），数据与别人互不可见。" +
-    (carry ? "\n当前设备已有的记录会自动带入新账本。" : "\n注意：当前正使用独立账本 " + CONFIG.ledger + "，新账本将从空表开始。"),
-    { okText: "创建" });
+  const ok = await uiConfirm("创建我的独立账本？\n\n将在云端新建你专属的两张数据表：\n· 流水表 → 空数据开始（0 笔，从零记起）\n· 设置表 → 带入你当前的时薪/基金参数\n\n公共演示账本不受任何影响。",
+    { okText: "创建空账本" });
   if (!ok) return;
   const btn = $("btnNewBucket"); btn.disabled = true; btn.textContent = "创建中…";
   toast("正在创建在线数据表…");
   try{
     const code = genLedgerCode();
-    await rawWrite(code+"-records", store.records||[]);
+    await rawWrite(code+"-records", []);                                          // 默认空数据开始
     await rawWrite(code+"-settings", Object.assign({},DEFAULT_SETTINGS,store.settings||{}));
     const url = location.href.split("?")[0].split("#")[0] + "?ledger=" + code;
-    await uiConfirm("✓ 独立账本创建成功\n\n账本编号：" + code + "\n\n换设备时：设置页输入此编号，或打开下面的地址\n" + url,
+    await uiConfirm("✓ 独立账本创建成功（空账本，0 笔记录）\n\n账本编号：" + code + "\n\n换设备时：设置页输入此编号，或打开下面的地址\n" + url,
       { okText: "进入新账本", hideCancel: true });
     switchLedger(code);
   }catch(e){
