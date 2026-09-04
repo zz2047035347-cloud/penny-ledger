@@ -65,6 +65,12 @@
   .banner{ background:#7f1d1d; color:#fff; padding:10px 14px; font-size:13px; display:none; align-items:center; gap:10px; }
   .banner.show{ display:flex; }
   .banner button{ margin-left:auto; background:#fff; color:#7f1d1d; padding:6px 10px; font-size:13px; }
+  #modal{ position:fixed; inset:0; z-index:60; background:rgba(2,6,23,.72); display:none; align-items:center; justify-content:center; padding:24px; }
+  #modal.show{ display:flex; }
+  #modal .box{ background:var(--panel); border-radius:18px; padding:20px; width:100%; max-width:400px; box-shadow:var(--shadow); }
+  #modal .msg{ font-size:14.5px; line-height:1.7; margin-bottom:18px; white-space:pre-wrap; word-break:break-all; }
+  #modal .ops{ display:flex; gap:10px; justify-content:flex-end; }
+  #modal .ops button{ min-width:96px; }
 </style>
 </head>
 <body data-theme="dark">
@@ -269,6 +275,7 @@
   <button data-tab="set">设置</button>
 </nav>
 <div id="toast"></div>
+<div id="modal"><div class="box"><div class="msg" id="modalMsg"></div><div class="ops"><button id="modalCancel" class="ghost">取消</button><button id="modalOk">确认</button></div></div></div>
 
 <script>
 "use strict";
@@ -296,7 +303,10 @@ try{
 function dataKey(table){ return CONFIG.ledger==="main" ? table : CONFIG.ledger + "-" + table; }
 function genLedgerCode(){
   const cs = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from(crypto.getRandomValues(new Uint8Array(7))).map(b=>cs[b%cs.length]).join("");
+  let bytes;
+  try { bytes = crypto.getRandomValues(new Uint8Array(7)); }
+  catch(e){ bytes = new Uint8Array(7).map(()=>Math.floor(Math.random()*256)); }   // 老 WebView 无 crypto 时兜底
+  return Array.from(bytes).map(b=>cs[b%cs.length]).join("");
 }
 const LS_CACHE_RECORDS = "walletx_records_v1";
 const LS_CACHE_SETTINGS = "walletx_settings_v1";
@@ -382,6 +392,24 @@ function toast(msg, isErr){
   el.className = "show" + (isErr?" err":"");
   clearTimeout(toast._t); toast._t = setTimeout(()=>el.className="", isErr?4200:1800);
 }
+/* 页内对话框：部分手机浏览器（iOS Safari 勾选阻止弹窗 / 微信 X5 限制）会让原生
+   confirm/alert 静默失效返回 false，导致依赖它们的按钮“点了没反应”，故全部改走这里 */
+function uiConfirm(msg, opts){
+  opts = opts || {};
+  if (!$("modal")) return Promise.resolve(window.confirm ? window.confirm(msg) : false);
+  return new Promise(res=>{
+    const m = $("modal"), ok = $("modalOk"), cancel = $("modalCancel");
+    $("modalMsg").textContent = msg;
+    ok.textContent = opts.okText || "确认";
+    cancel.style.display = opts.hideCancel ? "none" : "";
+    ok.style.background = opts.danger ? "#ef4444" : ""; ok.style.color = opts.danger ? "#fff" : "";
+    const done = v => { m.classList.remove("show"); ok.onclick = cancel.onclick = m.onclick = null; res(v); };
+    ok.onclick = () => done(true); cancel.onclick = () => done(false);
+    m.onclick = e => { if (e.target === m) done(false); };
+    m.classList.add("show");
+  });
+}
+function uiAlert(msg, okText){ return uiConfirm(msg, { okText: okText || "知道了", hideCancel: true }); }
 function setSync(state, text){
   const p = $("syncPill"); p.textContent = text;
   p.className = "pill " + (state==="ok"?"ok":state==="err"?"err":"");
@@ -637,8 +665,8 @@ function saveEdit(){
   writeCache("records",store.records); $("editId").value=""; $("saveBtn").textContent="保存"; $("inAmount").value=""; $("inNote").value="";
   renderAll(); pushCloud("records"); toast("已更新 ✓");
 }
-function deleteRecord(id){
-  if(!confirm("删除这笔记录？将同步到云端。")) return;
+async function deleteRecord(id){
+  if(!await uiConfirm("删除这笔记录？将同步到云端，不可恢复。", { danger:true, okText:"删除" })) return;
   store.records = store.records.filter(x=>x.id!==id);
   writeCache("records",store.records); renderAll(); pushCloud("records"); toast("已删除");
 }
@@ -754,7 +782,7 @@ $("fileImport").onchange=async e=>{
   }catch(err){ toast("导入失败："+err.message,true); }
 };
 $("btnWipe").onclick=async()=>{
-  if(!confirm("清空线上和本地的全部记录？此操作会把云端两张表清空，不可恢复。建议先导出备份。")) return;
+  if(!await uiConfirm("清空线上和本地的全部记录？此操作会把云端两张表清空，不可恢复。建议先导出备份。", { danger:true, okText:"全部清空" })) return;
   store.records=[]; writeCache("records",store.records); renderAll(); await pushCloud("records"); toast("已清空");
 };
 function refreshBucketUI(){
@@ -771,17 +799,26 @@ function switchLedger(code){
   location.href = location.href.split("?")[0].split("#")[0] + "?ledger=" + code;
 }
 $("btnNewBucket").onclick = async ()=>{
-  if(CONFIG.ledger!=="main" && !confirm("已在使用独立账本 "+CONFIG.ledger+"，仍要再新建一个？当前账本数据不会带过去。")) return;
-  if(!confirm("将为你在云端新建专属的「流水表 + 设置表」，并把当前设备上已有的记录带入新账本。继续？")) return;
+  if ($("btnNewBucket").disabled) return;
+  const carry = CONFIG.ledger==="main";
+  const ok = await uiConfirm("创建独立账本？\n将在云端新建你专属的两张数据表（流水 + 设置），数据与别人互不可见。" +
+    (carry ? "\n当前设备已有的记录会自动带入新账本。" : "\n注意：当前正使用独立账本 " + CONFIG.ledger + "，新账本将从空表开始。"),
+    { okText: "创建" });
+  if (!ok) return;
+  const btn = $("btnNewBucket"); btn.disabled = true; btn.textContent = "创建中…";
   toast("正在创建在线数据表…");
   try{
     const code = genLedgerCode();
     await rawWrite(code+"-records", store.records||[]);
     await rawWrite(code+"-settings", Object.assign({},DEFAULT_SETTINGS,store.settings||{}));
     const url = location.href.split("?")[0].split("#")[0] + "?ledger=" + code;
-    alert("独立账本创建成功 ✓\n\n账本编号：" + code + "\n\n换设备/换浏览器时，打开下面地址或输入编号即可继续使用：\n" + url);
+    await uiConfirm("✓ 独立账本创建成功\n\n账本编号：" + code + "\n\n换设备时：设置页输入此编号，或打开下面的地址\n" + url,
+      { okText: "进入新账本", hideCancel: true });
     switchLedger(code);
-  }catch(e){ toast("创建失败："+e.message+"（云端拒绝，请稍后重试）",true); }
+  }catch(e){
+    toast("创建失败："+e.message+"（云端拒绝，请稍后重试）",true);
+    btn.disabled = false; btn.textContent = "创建我的独立账本";
+  }
 };
 $("btnJoinLedger").onclick = async ()=>{
   const code = $("inLedger").value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,"");
