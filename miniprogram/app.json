@@ -1,0 +1,11 @@
+{
+  "pages": ["pages/webview/webview"],
+  "window": {
+    "navigationBarTitleText": "打工人小账本",
+    "navigationBarBackgroundColor": "#0f172a",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0f172a"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

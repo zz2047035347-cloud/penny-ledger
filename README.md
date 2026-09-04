@@ -25,7 +25,7 @@
 - **iPhone**：Safari 打开 → 分享 → 「添加到主屏幕」，全屏 App 体验（已配 web app meta）。
 - **微信**：链接发到聊天里点开即用。
 - **做成原生微信小程序的两条路**（当前是 H5，不是小程序本体）：
-  1. 小程序内 `web-view` 嵌本页面：要求域名 ICP 备案 + 小程序后台配置「业务域名」。
+  1. 小程序内 `web-view` 嵌本页面：**仓库已附现成壳子 `miniprogram/`**（含操作手册）。硬性前提：非个人主体小程序 + 已备案 HTTPS 域名（github.io 不可用）。
   2. 把存储层换成微信云开发数据库（`records`/`settings` 两个集合）：页面逻辑基本全保留，只需替换 `cloudRead / cloudWrite / rawWrite+rawRead` 三个函数（见下）。
 
 ## 数据架构（在线双表）
