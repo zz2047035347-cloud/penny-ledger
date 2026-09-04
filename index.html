@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>打工人小账本</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --text:#e2e8f0; --muted:#94a3b8;
+    --accent:#38bdf8; --good:#34d399; --bad:#f87171; --warn:#fbbf24;
+    --radius:14px; --shadow:0 8px 24px rgba(0,0,0,.25);
+  }
+  [data-theme="light"]{ --bg:#f6f8fb; --panel:#ffffff; --panel2:#eef2f7; --text:#0f172a; --muted:#64748b; --shadow:0 8px 24px rgba(15,23,42,.08); }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{ font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); padding-bottom:78px; -webkit-font-smoothing:antialiased; }
+  header{ position:sticky; top:0; z-index:20; padding:10px 16px; display:flex; align-items:center; gap:10px;
+          background:var(--panel); box-shadow:var(--shadow); border-bottom:1px solid var(--panel2); }
+  header h1{ font-size:16px; font-weight:700; flex:1; }
+  .pill{ font-size:12px; padding:3px 8px; border-radius:999px; background:var(--panel2); color:var(--muted); white-space:nowrap; }
+  .pill.ok{ color:var(--good); } .pill.err{ color:var(--bad); }
+  main{ max-width:640px; margin:0 auto; padding:14px 14px 30px; display:none; }
+  main.ready{ display:block; }
+  section{ background:var(--panel); border-radius:var(--radius); padding:16px; margin-bottom:14px; box-shadow:var(--shadow); }
+  h2{ font-size:15px; margin-bottom:10px; color:var(--accent); }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  label{ font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  input,select,textarea{ width:100%; padding:10px; border-radius:10px; border:1px solid var(--panel2); background:var(--panel2); color:var(--text); font-size:15px; outline:none; }
+  input:focus,select:focus,textarea:focus{ border-color:var(--accent); }
+  button{ border:none; border-radius:10px; padding:11px 14px; font-size:15px; background:var(--accent); color:#082032; font-weight:600; cursor:pointer; }
+  button.ghost{ background:var(--panel2); color:var(--text); font-weight:500; }
+  button.danger{ background:transparent; color:var(--bad); padding:6px 8px; font-size:13px; }
+  button:disabled{ opacity:.5; }
+  .big{ font-size:30px; font-weight:800; letter-spacing:.5px; }
+  .sub{ color:var(--muted); font-size:13px; margin-top:2px; }
+  .row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .row + .row{ margin-top:8px; }
+  .formula{ font-size:12.5px; color:var(--muted); line-height:1.7; background:var(--panel2); border-radius:10px; padding:10px 12px; margin-top:10px; }
+  .formula b{ color:var(--text); font-weight:600; }
+  .cats{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 10px; }
+  .cat{ font-size:13px; padding:7px 11px; border-radius:999px; background:var(--panel2); color:var(--muted); border:1px solid transparent; cursor:pointer; }
+  .cat.on{ color:var(--text); border-color:var(--accent); }
+  .recent-item{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed var(--panel2); }
+  .recent-item:last-child{ border-bottom:none; }
+  .tag{ font-size:11px; padding:2px 7px; border-radius:6px; background:var(--panel2); color:var(--muted); }
+  .time-coin{ margin-left:auto; text-align:right; font-size:12px; color:var(--warn); white-space:nowrap; }
+  .summary-num{ display:flex; justify-content:space-between; padding:7px 0; font-size:14px; }
+  .bar-wrap{ margin:6px 0; }
+  .bar{ height:10px; border-radius:6px; background:var(--panel2); overflow:hidden; display:flex; }
+  .bar i{ display:block; height:100%; }
+  #chart{ width:100%; height:180px; display:block; }
+  .hint{ font-size:12px; color:var(--muted); line-height:1.6; }
+  nav{ position:fixed; bottom:0; left:0; right:0; z-index:30; display:flex; background:var(--panel);
+       border-top:1px solid var(--panel2); padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -4px 18px rgba(0,0,0,.15); }
+  nav button{ flex:1; background:none; color:var(--muted); font-size:12px; padding:10px 4px 8px; border-radius:0; }
+  nav button.on{ color:var(--accent); font-weight:700; }
+  #toast{ position:fixed; left:50%; bottom:96px; transform:translateX(-50%) translateY(20px); background:#111827e8; color:#fff;
+          padding:10px 16px; border-radius:999px; font-size:13.5px; opacity:0; pointer-events:none; transition:.25s; max-width:86vw; z-index:50; }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast.err{ background:#7f1d1dee; }
+  .skel{ height:14px; border-radius:7px; background:var(--panel2); margin:8px 0; animation:pulse 1.2s infinite; }
+  @keyframes pulse{ 50%{ opacity:.5 } }
+  .mini{ font-size:12px; color:var(--muted); }
+  a{ color:var(--accent); }
+  .banner{ background:#7f1d1d; color:#fff; padding:10px 14px; font-size:13px; display:none; align-items:center; gap:10px; }
+  .banner.show{ display:flex; }
+  .banner button{ margin-left:auto; background:#fff; color:#7f1d1d; padding:6px 10px; font-size:13px; }
+</style>
+</head>
+<body data-theme="dark">
+<header>
+  <h1>打工人小账本</h1>
+  <button id="themeBtn" class="ghost" style="padding:5px 9px;font-size:12px">🌙</button>
+  <span id="syncPill" class="pill">初始化…</span>
+</header>
+<div id="banner" class="banner"><span id="bannerMsg"></span><button id="bannerRetry">重试</button></div>
+
+<main id="main">
+  <!-- 首页 -->
+  <div id="tab-home">
+    <section>
+      <div class="row">
+        <div>
+          <div class="sub">今日时薪 · 你的时间价值</div>
+          <div class="big" id="hourWage">¥--</div>
+          <div class="sub" id="hourWageSub">先完善工资参数</div>
+        </div>
+        <div style="text-align:right">
+          <div class="sub">自由基金进度</div>
+          <div class="big" id="fundPct" style="font-size:22px">--%</div>
+        </div>
+      </div>
+      <div class="bar-wrap"><div class="bar"><i id="fundBar" style="width:0;background:linear-gradient(90deg,var(--accent),var(--good))"></i></div></div>
+      <div class="mini" id="fundNote">目标与存款详见「基金」页</div>
+    </section>
+
+    <section id="todayEarnCard" style="display:none">
+      <div class="row"><h2 style="margin:0">今天你赚了多少</h2><span class="mini" id="todayEarnStatus"></span></div>
+      <div class="big" id="todayEarnAmt">¥0.00</div>
+      <div class="bar-wrap"><div class="bar"><i id="todayEarnBar" style="width:0;background:linear-gradient(90deg,var(--warn),var(--good))"></i></div></div>
+      <div class="sub" id="todayEarnNote"></div>
+    </section>
+
+    <section>
+      <h2>记一笔（10 秒）</h2>
+      <div class="grid" style="grid-template-columns:2fr 1fr">
+        <div><label>金额（元）</label><input id="inAmount" type="number" inputmode="decimal" placeholder="如 25" autofocus></div>
+        <div><label>类型</label><select id="inType"><option value="expense">支出</option><option value="income">收入</option></select></div>
+      </div>
+      <label style="margin-top:8px">分类</label>
+      <div class="cats" id="catList"></div>
+      <div><label>备注（可选）</label><input id="inNote" placeholder="如：公司楼下面馆"></div>
+      <div class="row" style="margin-top:12px">
+        <div class="hint" id="coinHint"></div>
+        <button id="saveBtn">保存</button>
+      </div>
+      <input type="hidden" id="editId" value="">
+    </section>
+
+    <section>
+      <div class="row"><h2 style="margin:0">最近 4 笔</h2><span class="mini" id="loadHint"></span></div>
+      <div id="recentList"></div>
+    </section>
+
+    <section>
+      <h2>本月总结（<span id="monthLabel"></span>）</h2>
+      <div class="summary-num"><span>收入合计</span><b id="sumIncome" style="color:var(--good)">¥0</b></div>
+      <div class="summary-num"><span>固定支出</span><b id="sumFixed">¥0</b></div>
+      <div class="summary-num"><span>弹性支出</span><b id="sumFlex">¥0</b></div>
+      <div class="summary-num"><span>结余</span><b id="sumNet">¥0</b></div>
+      <div class="sub" id="monthWage" style="margin-top:6px"></div>
+    </section>
+  </div>
+
+  <!-- 时薪 -->
+  <div id="tab-wage" style="display:none">
+    <section>
+      <h2>真实时薪计算器</h2>
+      <p class="hint" style="margin-bottom:10px">把工资除以「你真正付出的时间」，再扣掉为工作花的钱——这才是打工人真实时薪。</p>
+      <div class="cats" style="margin-top:0">
+        <button class="cat" id="modeMonthly">月薪制</button>
+        <button class="cat" id="modeDaily">实习日薪制</button>
+      </div>
+      <div class="grid" id="monthlyFields">
+        <div><label>到手月薪（元）</label><input id="wNetPay" type="number" inputmode="decimal"></div>
+        <div><label>发薪月数（一年拿几个月）</label><input id="wPayMonths" type="number" step="0.5"></div>
+        <div><label>每周工作天数</label><input id="wDaysWeek" type="number"></div>
+      </div>
+      <div class="grid" id="dailyFields">
+        <div><label>日薪（元/天）</label><input id="wDailyPay" type="number" inputmode="decimal"></div>
+        <div><label>每周出勤天数</label><input id="wAttendDays" type="number"></div>
+        <div><label>实习期（月，用于总收益预估）</label><input id="wInternMonths" type="number" step="0.5"></div>
+      </div>
+      <div class="grid">
+        <div><label>每日在岗（小时）</label><input id="wDailyHours" type="number" step="0.5"></div>
+        <div><label>每日加班（小时）</label><input id="wOvertime" type="number" step="0.5"></div>
+        <div><label>单程通勤（分钟）</label><input id="wCommute" type="number"></div>
+        <div><label>工作日成本（元/天）</label><input id="wWorkCost" type="number" step="0.5"></div>
+        <div><label>上班打卡时间</label><input id="wWorkStart" type="time"></div>
+        <div><label>每周休息参照日</label><select id="wRestDay"><option value="6">周日</option><option value="0">周一</option><option value="1">周二</option><option value="2">周三</option><option value="3">周四</option><option value="4">周五</option><option value="5">周六</option></select></div>
+      </div>
+      <p class="hint" style="margin-top:6px">工作日成本 = 通勤费 + 午饭溢价 + 工位咖啡等只为上班才花的钱。打卡时间用于首页「今天你赚了多少」实时进度。</p>
+      <div class="row" style="margin-top:12px"><div class="sub">点保存后即时写入云端</div><button id="wageSave">保存参数</button></div>
+      <div class="formula" id="wageFormula">—</div>
+    </section>
+  </div>
+
+  <!-- 基金 -->
+  <div id="tab-fund" style="display:none">
+    <section>
+      <h2>自由基金 & 安全垫</h2>
+      <div class="grid">
+        <div><label>目标总额（元）</label><input id="fTarget" type="number" inputmode="decimal"></div>
+        <div><label>安全垫月数（够活几个月）</label><input id="fSafetyMonths" type="number" min="1" value="6"></div>
+      </div>
+      <div class="row" style="margin-top:12px"><div class="sub">即时写云端</div><button id="fundSave">保存目标</button></div>
+      <div style="margin-top:14px">
+        <div class="big" id="fundBalance">¥--</div>
+        <div class="sub">累计结余 = 全部收入 − 全部支出（线上流水实时汇总）</div>
+      </div>
+      <div class="bar-wrap"><div class="bar"><i id="fundBar2" style="width:0;background:linear-gradient(90deg,var(--accent),var(--good))"></i></div></div>
+      <div id="safetyInfo" class="hint" style="margin-top:8px"></div>
+      <div class="formula" id="fundPlan">—</div>
+    </section>
+    <section>
+      <h2>存款曲线（逐月累计结余）</h2>
+      <svg id="chart" viewBox="0 0 640 180" preserveAspectRatio="none"></svg>
+      <div class="mini" id="chartNote"></div>
+    </section>
+  </div>
+
+  <!-- 模拟 -->
+  <div id="tab-sim" style="display:none">
+    <section>
+      <h2>情景模拟器</h2>
+      <p class="hint" style="margin-bottom:10px">拖动滑杆，看看换一种活法，真实时薪会变成多少。</p>
+      <div class="grid">
+        <div><label>通勤变化（±分钟/单程）</label><input id="sCommute" type="range" min="-30" max="60" value="0" step="5"><div class="mini" id="sCommuteV"></div></div>
+        <div><label>加班变化（±小时/天）</label><input id="sOvertime" type="range" min="-2" max="6" value="0" step="0.5"><div class="mini" id="sOvertimeV"></div></div>
+        <div><label>涨薪幅度（%）</label><input id="sRaise" type="range" min="-10" max="60" value="0" step="1"><div class="mini" id="sRaiseV"></div></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div><div class="sub">模拟时薪</div><div class="big" id="simWage">¥--</div></div>
+        <div style="text-align:right"><div class="sub">对比当前</div><div class="big" id="simDelta" style="font-size:22px">--</div><div class="mini">按年 21.75 工作日折算多赚/少赚</div></div>
+      </div>
+      <div class="formula" id="simFormula">—</div>
+    </section>
+    <section>
+      <h2>转正 Offer 对比</h2>
+      <p class="hint" style="margin-bottom:10px">实习日薪 vs 转正月薪：把两个岗位放到同一个「真实时薪」尺子上量。</p>
+      <div class="grid">
+        <div><label>意向转正月薪（元）</label><input id="oMonthly" type="number" inputmode="decimal"></div>
+        <div><label>转正后每周工作天数</label><input id="oDaysWeek" type="number"></div>
+        <div><label>转正后每日在岗（小时）</label><input id="oDailyHours" type="number" step="0.5"></div>
+        <div><label>转正后每日加班（小时）</label><input id="oOvertime" type="number" step="0.5"></div>
+        <div><label>转正后单程通勤（分钟）</label><input id="oCommute" type="number"></div>
+        <div><label>转正后工作日成本（元/天）</label><input id="oWorkCost" type="number" step="0.5"></div>
+      </div>
+      <div class="formula" id="offerCompare">填写以上参数开始对比 →</div>
+    </section>
+  </div>
+
+  <!-- 设置 -->
+  <div id="tab-set" style="display:none">
+    <section>
+      <h2>数据与同步</h2>
+      <div class="summary-num"><span>同步状态</span><b id="syncState">—</b></div>
+      <div class="summary-num"><span>在线数据地址（换设备时打开即可）</span><b id="dbInfo" class="mini" style="max-width:55%;word-break:break-all">—</b></div>
+      <div class="grid" style="margin-top:10px">
+        <button class="ghost" id="btnRefresh">强制从云端刷新</button>
+        <button class="ghost" id="btnExport">导出 JSON 备份</button>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <button class="ghost" id="btnImport">从备份导入</button>
+        <button class="ghost" id="btnWipe" style="color:var(--bad)">清空全部数据</button>
+      </div>
+      <input type="file" id="fileImport" accept=".json" style="display:none">
+      <div class="row" style="margin-top:12px">
+        <div class="sub" id="bucketState">当前：演示共用账本</div>
+        <button id="btnNewBucket">创建我的独立账本</button>
+      </div>
+      <div class="grid" style="margin-top:10px;grid-template-columns:2fr 1fr">
+        <div><label>换设备？输入账本编号直接打开</label><input id="inLedger" placeholder="如 K7M2XQ9" autocapitalize="characters"></div>
+        <div style="display:flex;align-items:flex-end"><button class="ghost" id="btnJoinLedger" style="width:100%">打开</button></div>
+      </div>
+      <p class="hint" style="margin-top:6px">当前账本链接（发给自己的其他设备）：<span id="wsLink" class="mini"></span></p>
+      <p class="hint" style="margin-top:6px">独立账本 = 在云端新建两张专属数据表（编号-流水 + 编号-设置），你的数据与别人互不可见；把页面地址或账本编号发给另一台设备打开，即同一本账。</p>
+      <p class="hint" style="margin-top:10px" id="retentionNote"></p>
+    </section>
+    <section>
+      <h2>使用说明</h2>
+      <p class="hint">
+        · 数据存在在线 KVdb 数据表（每个账本两张：流水表 + 设置表），记一笔、改一笔、删一笔都会即时写回云端。<br>
+        · 换手机/换浏览器：点上方「创建我的独立账本」拿到编号，在新设备输入编号（或打开同一链接）即接上同一本账。<br>
+        · iOS：Safari 打开本页 → 分享 → 添加到主屏幕，像 App 一样使用。<br>
+        · 微信：把链接发到聊天里即可在微信内打开记录。<br>
+        · 免费 KVdb 桶约 3 个月未访问会过期，页面会提前提醒；也可随时导出 JSON 备份再导入。<br>
+        · 正式长期使用建议换成自己的 Supabase / 云开发数据表，只需替换顶部 CONFIG 里的地址和读写函数。
+      </p>
+    </section>
+  </div>
+</main>
+
+<nav>
+  <button data-tab="home" class="on">首页</button>
+  <button data-tab="wage">时薪</button>
+  <button data-tab="fund">基金</button>
+  <button data-tab="sim">模拟</button>
+  <button data-tab="set">设置</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============================ 在线存储层 ============================ */
+/* 两张线上数据表：流水表 records、设置表 settings。
+   换成长期自有服务时，只需实现 read/write 两个函数即可。 */
+const CONFIG = {
+  provider: "kvdb",
+  baseUrl: "https://kvdb.io",
+  bucket: "UrzxrixVP5M6YxVgB8Sc34",   // 默认演示桶；个人用户点「创建我的独立账本」换取自己的桶
+  recordsKey: "records",              // 流水记录数据表
+  settingsKey: "settings",            // 个人设置数据表
+  timeoutMs: 12000
+};
+// 数据空间寻址：URL 参数 > 本机记录 > 默认（main = 演示共用账本，表名 records / settings；
+// 独立账本号 CODE 则使用 CODE-records / CODE-settings 两张专属表，同一桶内互不可见）
+try{
+  const q = new URLSearchParams(location.search);
+  const ub = q.get("bucket"), ul = q.get("ledger");
+  if(ub) localStorage.setItem("walletx_bucket", ub);
+  if(ul && /^[A-Za-z0-9-]{4,30}$/.test(ul)) localStorage.setItem("walletx_ledger", ul.toUpperCase());
+  CONFIG.bucket = localStorage.getItem("walletx_bucket") || CONFIG.bucket;
+  CONFIG.ledger = localStorage.getItem("walletx_ledger") || "main";
+}catch(e){ CONFIG.ledger = "main"; }
+function dataKey(table){ return CONFIG.ledger==="main" ? table : CONFIG.ledger + "-" + table; }
+function genLedgerCode(){
+  const cs = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from(crypto.getRandomValues(new Uint8Array(7))).map(b=>cs[b%cs.length]).join("");
+}
+const LS_CACHE_RECORDS = "walletx_records_v1";
+const LS_CACHE_SETTINGS = "walletx_settings_v1";
+
+async function httpJson(url, opts){
+  const ctl = new AbortController();
+  const t = setTimeout(()=>ctl.abort(), CONFIG.timeoutMs);
+  try{
+    const res = await fetch(url, Object.assign({cache:"no-store", signal:ctl.signal}, opts));
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } finally { clearTimeout(t); }
+}
+async function cloudRead(table){
+  // kvdb 响应带 30 天 expires 缓存头，必须每次加随机串穿透缓存
+  const url = CONFIG.baseUrl + "/" + CONFIG.bucket + "/" + dataKey(table) + "?nc=" + Date.now() + Math.random().toString(36).slice(2,6);
+  return httpJson(url, {cache:"reload"});
+}
+async function cloudWrite(table, value){
+  const url = CONFIG.baseUrl + "/" + CONFIG.bucket + "/" + dataKey(table);
+  const res = await fetch(url, { method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(value), cache:"reload" });
+  if(!res.ok) throw new Error("HTTP " + res.status);
+}
+async function rawWrite(key, value){
+  const res = await fetch(CONFIG.baseUrl + "/" + CONFIG.bucket + "/" + key,
+    { method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(value), cache:"reload" });
+  if(!res.ok) throw new Error("HTTP " + res.status);
+}
+async function rawRead(key){
+  try{ return await httpJson(CONFIG.baseUrl + "/" + CONFIG.bucket + "/" + key + "?nc=" + Date.now() + Math.random().toString(36).slice(2,6), {cache:"reload"}); }
+  catch(e){ return null; }
+}
+function readCache(table){ try{ return JSON.parse(localStorage.getItem(table==="records"?LS_CACHE_RECORDS:LS_CACHE_SETTINGS)); }catch(e){ return null; } }
+function writeCache(table, v){ try{ localStorage.setItem(table==="records"?LS_CACHE_RECORDS:LS_CACHE_SETTINGS, JSON.stringify(v)); }catch(e){} }
+
+const DEFAULT_SETTINGS = {
+  payMode: "monthly", dailyPay: 200, attendDaysPerWeek: 5, internMonths: 3,
+  workStartHour: "09:00", restDay: 6,
+  netPay: 12000, payMonths: 12, workCostPerDay: 15, commuteOneWayMin: 30,
+  overtimePerDay: 1, workdaysPerWeek: 5, dailyHours: 8,
+  freeFundTarget: 100000, safetyMonths: 6
+};
+
+const store = {
+  records: null,   // 数组
+  settings: null,  // 对象
+  pending: {},     // 未成功写回的表格 -> 最新值（离线/失败补写）
+};
+
+/* ============================ 业务计算 ============================ */
+const CATS = {
+  expense: [["food","餐饮","#fb7185"],["transit","交通","#38bdf8"],["rent","居住","#a78bfa"],
+            ["fun","娱乐","#fbbf24"],["shop","购物","#34d399"],["med","医疗","#f472b6"],["other","其他","#94a3b8"]],
+  income:  [["salary","工资","#34d399"],["parttime","外快","#38bdf8"],["otherin","其他","#94a3b8"]]
+};
+const FIXED_CATS = ["rent","transit"];   // 固定支出分类（居住、通勤），其余为弹性
+function catName(t){ const a=CATS.expense.concat(CATS.income).find(c=>c[0]===t); return a?a[1]:t; }
+function catColor(t){ const a=CATS.expense.concat(CATS.income).find(c=>c[0]===t); return a?a[2]:"#94a3b8"; }
+
+function computeWage(s){
+  const isDaily = s.payMode === "daily";
+  const daysPerWeek = isDaily ? (s.attendDaysPerWeek||s.workdaysPerWeek||5) : (s.workdaysPerWeek||5);
+  const workdays = daysPerWeek * 52 / 12;                          // 平均每月出勤/工作天数
+  const monthlyPay = isDaily ? (s.dailyPay||0) * workdays
+                             : (s.netPay||0) * (s.payMonths||12) / 12;
+  const dailyOnJob = (s.dailyHours||8) + (s.overtimePerDay||0) + (s.commuteOneWayMin||0)*2/60;
+  const monthlyHours = workdays * dailyOnJob;
+  const monthlyWorkCost = workdays * (s.workCostPerDay||0);
+  const realHourly = monthlyHours>0 ? (monthlyPay - monthlyWorkCost)/monthlyHours : 0;
+  return { isDaily, daysPerWeek, monthlyPay, workdays, dailyOnJob, monthlyHours, monthlyWorkCost, realHourly };
+}
+function y(n){ return (n<0?"-":"") + "¥" + Math.abs(n).toFixed(2).replace(/\.00$/,""); }
+
+/* ============================ 状态与渲染 ============================ */
+let selCat = "food";
+let selType = "expense";
+let firstLoadDone = false;
+
+const $ = id => document.getElementById(id);
+function toast(msg, isErr){
+  const el = $("toast"); el.textContent = msg;
+  el.className = "show" + (isErr?" err":"");
+  clearTimeout(toast._t); toast._t = setTimeout(()=>el.className="", isErr?4200:1800);
+}
+function setSync(state, text){
+  const p = $("syncPill"); p.textContent = text;
+  p.className = "pill " + (state==="ok"?"ok":state==="err"?"err":"");
+  $("syncState").textContent = text;
+}
+function showBanner(msg){ $("bannerMsg").textContent = msg; $("banner").classList.add("show"); }
+function hideBanner(){ $("banner").classList.remove("show"); }
+
+function renderAll(){
+  renderWage(); renderForm(); renderRecent(); renderSummary(); renderFund(); renderSim(); renderTodayEarn(); renderOffer();
+  $("main").classList.add("ready");
+}
+function renderWage(){
+  const s = store.settings, c = computeWage(s);
+  $("modeMonthly").classList.toggle("on", !c.isDaily);
+  $("modeDaily").classList.toggle("on", c.isDaily);
+  $("modeMonthly").style.borderColor = c.isDaily?"transparent":"var(--accent)";
+  $("modeDaily").style.borderColor = c.isDaily?"var(--accent)":"transparent";
+  $("monthlyFields").style.display = c.isDaily?"none":"";
+  $("dailyFields").style.display = c.isDaily?"":"none";
+  $("hourWage").textContent = "¥" + c.realHourly.toFixed(2);
+  $("hourWageSub").textContent = (c.isDaily?"实习日薪制 · ":"月薪制 · ") + "元/小时 · 平均每月付出 " + c.monthlyHours.toFixed(1) + " 小时";
+  const payLine = c.isDaily
+    ? `① 平均月收入 = 日薪 ${s.dailyPay} 元/天 ×（出勤 ${(s.attendDaysPerWeek||5)} 天/周 × 52 ÷ 12）= ${c.workdays.toFixed(1)} 天 × ${s.dailyPay} = <b>${y(c.monthlyPay)}</b><br>`
+    : `① 平均月薪 = 到手 ${s.netPay} × 发薪月数 ${s.payMonths} ÷ 12 = <b>${y(c.monthlyPay)}</b><br>`;
+  const dayLine = c.isDaily
+    ? `② 每月出勤 = ${s.attendDaysPerWeek||5} 天/周 × 52 ÷ 12 = <b>${c.workdays.toFixed(1)} 天</b><br>`
+    : `② 每月工作天数 = ${s.workdaysPerWeek} 天/周 × 52 ÷ 12 = <b>${c.workdays.toFixed(1)} 天</b><br>`;
+  let extra = "";
+  if(c.isDaily && s.internMonths>0){
+    const total = c.monthlyPay * s.internMonths;
+    extra = `<br>📎 实习 ${s.internMonths} 个月总收入预估 = ${y(c.monthlyPay)} × ${s.internMonths} = <b>${y(total)}</b>（未扣工作成本 ${y(c.monthlyWorkCost*s.internMonths)}）`;
+  }
+  const f = `<b>展开计算过程</b><br>
+    ${payLine}${dayLine}
+    ③ 每日付出 = 在岗 ${s.dailyHours}h + 加班 ${s.overtimePerDay}h + 往返通勤 ${(s.commuteOneWayMin*2/60).toFixed(2)}h = <b>${c.dailyOnJob.toFixed(2)}h</b><br>
+    ④ 每月付出 = ${c.workdays.toFixed(1)} × ${c.dailyOnJob.toFixed(2)} = <b>${c.monthlyHours.toFixed(1)} 小时</b><br>
+    ⑤ 每月工作成本 = ${s.workCostPerDay} 元/天 × ${c.workdays.toFixed(1)} = <b>${y(c.monthlyWorkCost)}</b><br>
+    ⑥ 真实时薪 = (① − ⑤) ÷ ④ = <b>¥${c.realHourly.toFixed(2)} / 小时</b>${extra}`;
+  $("wageFormula").innerHTML = f;
+}
+function renderTodayEarn(){
+  const s = store.settings, c = computeWage(s);
+  const card = $("todayEarnCard");
+  card.style.display = c.isDaily ? "" : "none";   // 日薪制专属实时卡
+  if(!c.isDaily) return;
+  const now = new Date();
+  const [sh, sm] = String(s.workStartHour||"09:00").split(":").map(Number);
+  const dayOnJob = c.dailyOnJob;
+  const isRest = now.getDay() === Number(s.restDay ?? 6);
+  const startMin = sh*60+sm, elapsed = (now.getHours()*60+now.getMinutes()+now.getSeconds()/60) - startMin;
+  const dayPay = s.dailyPay||0;
+  if(isRest){ $("todayEarnStatus").textContent = "休息日"; $("todayEarnAmt").textContent = "¥0"; $("todayEarnBar").style.width="0"; $("todayEarnNote").textContent = "休息也要记账，但今天的钱是昨天的你赚的。"; return; }
+  if(elapsed < 0){
+    $("todayEarnStatus").textContent = "未打卡"; $("todayEarnAmt").textContent = "¥0.00";
+    $("todayEarnBar").style.width = "0"; $("todayEarnNote").textContent = `${String(sh).padStart(2,"0")}:${String(sm).padStart(2,"0")} 开赚，日薪 ¥${s.dailyPay}`;
+  } else if(elapsed >= dayOnJob*60){
+    $("todayEarnStatus").textContent = "已下班"; $("todayEarnAmt").textContent = y(dayPay);
+    $("todayEarnBar").style.width = "100%"; $("todayEarnNote").textContent = `今天 ¥${dayPay} 已落袋 · 折合真实时薪 ¥${c.realHourly.toFixed(1)}/h`;
+  } else {
+    const ratio = elapsed/(dayOnJob*60);
+    const earned = dayPay*ratio;
+    const perSec = dayPay/(dayOnJob*3600);
+    $("todayEarnStatus").textContent = "进尺中…";
+    $("todayEarnAmt").textContent = "¥" + earned.toFixed(2);
+    $("todayEarnBar").style.width = (ratio*100).toFixed(1)+"%";
+    $("todayEarnNote").textContent = `每秒进账 ¥${perSec.toFixed(4)} · 剩余 ${Math.ceil(dayOnJob*60-elapsed)} 分钟赚完 ¥${dayPay}`;
+  }
+}
+setInterval(renderTodayEarn, 30000);
+function renderOffer(){
+  const s = store.settings, cur = computeWage(s);
+  const om = parseFloat($("oMonthly").value), od = parseFloat($("oDaysWeek").value), oh = parseFloat($("oDailyHours").value),
+        oot = parseFloat($("oOvertime").value), oc = parseFloat($("oCommute").value), owc = parseFloat($("oWorkCost").value);
+  if(!om){ $("offerCompare").innerHTML = "填写以上参数开始对比 →"; return; }
+  const off = computeWage({ payMode:"monthly", netPay:om, payMonths:12, workdaysPerWeek:od||5, dailyHours:oh||8, overtimePerDay:oot||0, commuteOneWayMin:oc||s.commuteOneWayMin, workCostPerDay:isNaN(owc)?s.workCostPerDay:owc });
+  const d = off.realHourly - cur.realHourly;
+  $("offerCompare").innerHTML = `实习真实时薪 <b>¥${cur.realHourly.toFixed(2)}/h</b> vs 转正真实时薪 <b>¥${off.realHourly.toFixed(2)}/h</b><br>
+    转正后每月真实付出 <b>${off.monthlyHours.toFixed(0)} 小时</b>（实习 ${cur.monthlyHours.toFixed(0)} 小时），时薪差 <b style="color:${d>=0?'var(--good)':'var(--bad)'}">${d>=0?"+":""}${d.toFixed(2)} 元/时</b><br>
+    ${d>=0 ? "✅ 按时间回报算，转正值得去。谈判筹码：实习日薪每多 ¥10/天 ≈ 真实时薪 +" + (10/cur.dailyOnJob).toFixed(2) + " 元/时" : "⚠️ 该 offer 按真实时薪算反而亏，别只看月薪数字"}。`;
+}
+function renderForm(){
+  const list = $("catList");
+  list.innerHTML = "";
+  CATS[selType].forEach(([k,n,col])=>{
+    const b = document.createElement("button");
+    b.className = "cat" + (k===selCat?" on":""); b.textContent = n;
+    b.style.borderColor = k===selCat?col:"transparent";
+    b.onclick = ()=>{ selCat=k; renderForm(); };
+    list.appendChild(b);
+  });
+  updateCoinHint();
+}
+function updateCoinHint(){
+  const c = computeWage(store.settings);
+  const a = parseFloat($("inAmount").value);
+  const el = $("coinHint");
+  if(!a || c.realHourly<=0){ el.textContent = ""; return; }
+  const mins = a / c.realHourly * 60;
+  const h = Math.floor(mins/60), m = Math.round(mins%60);
+  el.textContent = "≈ " + (h? h+"小时" : "") + (m? m+"分钟" : (h?"":"0分钟")) + " 的自由劳动";
+}
+function renderRecent(){
+  const box = $("recentList");
+  if(!firstLoadDone){ box.innerHTML = '<div class="skel" style="width:80%"></div><div class="skel" style="width:60%"></div><div class="skel" style="width:70%"></div>'; return; }
+  if(!store.records.length){ box.innerHTML = '<p class="hint" style="padding:10px 0">还没有记录，在上面记一笔试试。</p>'; return; }
+  const recent = store.records.slice().sort((a,b)=>b.ts-a.ts).slice(0,4);
+  const c = computeWage(store.settings);
+  box.innerHTML = "";
+  recent.forEach(r=>{
+    const d = new Date(r.ts);
+    const mins = c.realHourly>0 ? Math.round(r.amount / c.realHourly * 60) : 0;
+    const item = document.createElement("div");
+    item.className = "recent-item";
+    item.innerHTML = `
+      <span class="tag" style="background:${r.type==="income"?"#064e3b":catColor(r.cat)}22;color:${catColor(r.cat)}">${catName(r.cat)}</span>
+      <div style="min-width:0">
+        <div style="font-size:15px;font-weight:600">${r.type==="income"?"+":"-"}${y(r.amount).replace("-","")}</div>
+        <div class="mini">${d.getMonth()+1}/${d.getDate()} ${r.note?esc(r.note):""}</div>
+      </div>
+      <div class="time-coin">${r.type==="expense"&&mins>=1?"= 工作 "+(mins>=60?(mins/60).toFixed(1)+"h":mins+"min"):""}</div>`;
+    const btns = document.createElement("div");
+    btns.style.cssText = "display:flex;gap:2px";
+    const be = document.createElement("button"); be.className="danger"; be.textContent="改";
+    be.onclick = ()=>editRecord(r.id);
+    const bd = document.createElement("button"); bd.className="danger"; bd.textContent="删";
+    bd.onclick = ()=>deleteRecord(r.id);
+    btns.append(be,bd); item.appendChild(btns);
+    box.appendChild(item);
+  });
+}
+function esc(s){ const div=document.createElement("div"); div.textContent=s; return div.innerHTML; }
+
+function renderSummary(){
+  const now = new Date(), ym = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  $("monthLabel").textContent = now.getFullYear()+"年"+(now.getMonth()+1)+"月";
+  let inc=0, fixed=0, flex=0, incCount=0, expCount=0;
+  store.records.forEach(r=>{
+    const d=new Date(r.ts); if(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")!==ym) return;
+    if(r.type==="income"){ inc+=r.amount; incCount++; }
+    else { expCount++; if(FIXED_CATS.includes(r.cat)) fixed+=r.amount; else flex+=r.amount; }
+  });
+  $("sumIncome").textContent = y(inc); $("sumFixed").textContent = y(fixed); $("sumFlex").textContent = y(flex);
+  const net = inc-fixed-flex; $("sumNet").textContent = y(net); $("sumNet").style.color = net>=0?"var(--good)":"var(--bad)";
+  const c = computeWage(store.settings);
+  const workDays = expCount ? (fixed+flex)/Math.max(c.realHourly,.01)/60/8 : 0;
+  const workLabel = workDays < 0.1 ? ((fixed+flex)/Math.max(c.realHourly,.01)).toFixed(1) + " 小时的劳动" : workDays.toFixed(1) + " 个工作日的劳动";
+  $("monthWage").textContent = expCount? `本月共 ${expCount} 笔支出、${incCount} 笔收入；支出合计 ≈ ${workLabel}` : "";
+}
+function renderFund(){
+  const s = store.settings;
+  const totalInc = store.records.filter(r=>r.type==="income").reduce((a,r)=>a+r.amount,0);
+  const totalExp = store.records.filter(r=>r.type==="expense").reduce((a,r)=>a+r.amount,0);
+  const balance = totalInc - totalExp;
+  const target = s.freeFundTarget || 1;
+  const pct = Math.max(0, Math.min(100, balance/target*100));
+  $("fundBalance").textContent = y(balance);
+  $("fundPct").textContent = pct.toFixed(1)+"%";
+  $("fundBar").style.width = pct+"%"; $("fundBar2").style.width = pct+"%";
+  // 月均支出 → 安全垫
+  const months = new Set(store.records.map(r=>{const d=new Date(r.ts);return d.getFullYear()+"-"+d.getMonth();})).size || 1;
+  const avgExp = totalExp/months;
+  const safetyNeed = avgExp*(s.safetyMonths||6);
+  $("safetyInfo").innerHTML = `月均支出 <b>${y(avgExp)}</b>，${s.safetyMonths||6} 个月安全垫需 <b>${y(safetyNeed)}</b>，当前${balance>=safetyNeed?"<span style='color:var(--good)'>已达标 ✓</span>":"<span style='color:var(--warn)'>还差 "+y(Math.max(0,safetyNeed-balance))+"</span>"}`;
+  const remain = Math.max(0, target-balance);
+  const s1=computeWage(s);
+  const needMonths = remain>0 ? Math.ceil(remain/Math.max(s1.monthlyPay - s1.monthlyWorkCost - avgExp,1)) : 0;
+  $("fundPlan").innerHTML = remain>0
+    ? `距目标还需 <b>${y(remain)}</b>；按当前月结余节奏（收入 ${y(s1.monthlyPay)} − 工作成本 ${y(s1.monthlyWorkCost)} − 月均支出 ${y(avgExp)}）约需 <b>${needMonths} 个月</b>；也可按 ¥${s1.realHourly.toFixed(0)}/时薪计算，折合自由时间 <b>${(remain/Math.max(s1.realHourly,.01)).toFixed(0)} 小时</b>。`
+    : `🎉 自由基金已达成！`;
+  $("fTarget").value = s.freeFundTarget; $("fSafetyMonths").value = s.safetyMonths||6;
+  renderChart();
+}
+function renderChart(){
+  const svg = $("chart");
+  const byMonth = {};
+  store.records.forEach(r=>{ const d=new Date(r.ts); const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    byMonth[k]=(byMonth[k]||0)+(r.type==="income"?r.amount:-r.amount); });
+  const keys = Object.keys(byMonth).sort();
+  if(keys.length<2){ svg.innerHTML=`<text x="320" y="90" text-anchor="middle" fill="#94a3b8" font-size="14">至少积累 2 个完整月份后显示存款曲线</text>`; $("chartNote").textContent=""; return; }
+  let acc=0; const pts = keys.map(k=>{ acc+=byMonth[k]; return {k, v:acc}; });
+  const W=640,H=180,P=30;
+  const min=Math.min(0,...pts.map(p=>p.v)), max=Math.max(...pts.map(p=>p.v),1);
+  const x=i=>P+i*(W-2*P)/(pts.length-1), yy=v=>H-P-(v-min)/(max-min||1)*(H-2*P);
+  const line = pts.map((p,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+yy(p.v).toFixed(1)).join(" ");
+  const area = line+` L${x(pts.length-1).toFixed(1)} ${H-P} L${x(0).toFixed(1)} ${H-P} Z`;
+  let grid=""; for(let g=0;g<=2;g++){ const gy=P+g*(H-2*P)/2; grid+=`<line x1="${P}" y1="${gy}" x2="${W-P}" y2="${gy}" stroke="#94a3b855" stroke-dasharray="4 4"/><text x="${P-6}" y="${gy+4}" text-anchor="end" font-size="10" fill="#94a3b8">${((max-(max-min)*g/2)/1000).toFixed(0)}k</text>`; }
+  svg.innerHTML = grid + `<path d="${area}" fill="#38bdf822"/><path d="${line}" fill="none" stroke="#38bdf8" stroke-width="2.5"/>`
+    + pts.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${yy(p.v).toFixed(1)}" r="3" fill="#38bdf8"/>`).join("")
+    + `<text x="${x(0)}" y="${H-8}" font-size="10" fill="#94a3b8">${pts[0].k}</text><text x="${W-P}" y="${H-8}" text-anchor="end" font-size="10" fill="#94a3b8">${pts[pts.length-1].k}</text>`;
+  $("chartNote").textContent = "最新累计结余 " + y(acc);
+}
+function renderSim(){
+  const s = store.settings, base = computeWage(s);
+  const dCommute=+$("sCommute").value, dOT=+$("sOvertime").value, dRaise=+$("sRaise").value;
+  $("sCommuteV").textContent = (dCommute>=0?"+":"")+dCommute+" 分钟";
+  $("sOvertimeV").textContent = (dOT>=0?"+":"")+dOT+" 小时";
+  $("sRaiseV").textContent = (dRaise>=0?"+":"")+dRaise+"%";
+  const ns = Object.assign({}, s, {
+    netPay: +(s.netPay*(1+dRaise/100)).toFixed(0),
+    commuteOneWayMin: Math.max(0, s.commuteOneWayMin+dCommute),
+    overtimePerDay: Math.max(0, s.overtimePerDay+dOT)
+  });
+  const c = computeWage(ns);
+  $("simWage").textContent = "¥" + c.realHourly.toFixed(2);
+  const delta = c.realHourly - base.realHourly;
+  const yearExtra = delta * base.monthlyHours * 12;
+  $("simDelta").innerHTML = `<span style="color:${delta>=0?'var(--good)':'var(--bad)'}">${delta>=0?"+":""}${delta.toFixed(2)} 元/时</span>`;
+  $("simFormula").innerHTML = `公式同「时薪」页；按每月 ${base.monthlyHours.toFixed(0)} 小时折算，相当于一年多赚 <b>${y(yearExtra)}</b>。注意涨薪会同时改变可支配结余，这里只衡量单位时间回报。`;
+}
+
+/* ============================ 数据操作（先本地→UI，再写云端） ============================ */
+async function pushCloud(table){
+  const value = table==="records"?store.records:store.settings;
+  setSync("","保存中…");
+  try{
+    await cloudWrite(table, value);
+    delete store.pending[table];
+    setSync("ok","已同步 ✓");
+    $("loadHint").textContent = "在线 · " + new Date().toTimeString().slice(0,5);
+    hideBanner();
+    flushPending();
+  }catch(e){
+    store.pending[table]=true;
+    setSync("err","云端未更新");
+    showBanner(e.name==="AbortError"?"网络超时，数据已暂存本地，可点重试补写云端。":"写入云端失败（"+e.message+"），数据已暂存本地，可点重试补写。");
+  }
+}
+async function flushPending(){
+  for(const t of Object.keys(store.pending)){ await pushCloud(t); }
+}
+function addRecord(){
+  const amount = parseFloat($("inAmount").value);
+  if(!amount || amount<=0){ toast("请输入正确金额", true); return; }
+  const r = { id: "r"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+              ts: Date.now(), type: selType, cat: selCat, amount: +amount.toFixed(2), note: $("inNote").value.trim() };
+  store.records.push(r); writeCache("records", store.records);
+  $("inAmount").value=""; $("inNote").value=""; $("editId").value=""; $("saveBtn").textContent="保存";
+  renderAll(); pushCloud("records");
+  if(selType==="expense"){ const c=computeWage(store.settings); const mins=c.realHourly>0?Math.round(r.amount/c.realHourly*60):0;
+    toast("已保存 ✓ 这笔 ≈ 工作 "+(mins>=60?(mins/60).toFixed(1)+" 小时":mins+" 分钟")); }
+}
+function editRecord(id){
+  const r = store.records.find(x=>x.id===id); if(!r) return;
+  selType=r.type; selCat=r.cat; renderForm();
+  $("inAmount").value=r.amount; $("inNote").value=r.note||""; $("inType").value=r.type;
+  $("editId").value=id; $("saveBtn").textContent="更新"; window.scrollTo({top:0,behavior:"smooth"});
+}
+function saveEdit(){
+  const id=$("editId").value; const r=store.records.find(x=>x.id===id);
+  const amount=parseFloat($("inAmount").value); if(!r||!amount||amount<=0){ toast("请输入正确金额",true); return; }
+  r.amount=+amount.toFixed(2); r.type=selType; r.cat=selCat; r.note=$("inNote").value.trim();
+  writeCache("records",store.records); $("editId").value=""; $("saveBtn").textContent="保存"; $("inAmount").value=""; $("inNote").value="";
+  renderAll(); pushCloud("records"); toast("已更新 ✓");
+}
+function deleteRecord(id){
+  if(!confirm("删除这笔记录？将同步到云端。")) return;
+  store.records = store.records.filter(x=>x.id!==id);
+  writeCache("records",store.records); renderAll(); pushCloud("records"); toast("已删除");
+}
+async function saveWage(){
+  const s=store.settings;
+  const g=(id,k)=>{const v=parseFloat($(id).value); if(!isNaN(v)&&v>=0) s[k]=v;};
+  g("wNetPay","netPay"); g("wPayMonths","payMonths"); g("wDaysWeek","workdaysPerWeek"); g("wDailyHours","dailyHours");
+  g("wOvertime","overtimePerDay"); g("wCommute","commuteOneWayMin"); g("wWorkCost","workCostPerDay");
+  g("wDailyPay","dailyPay"); g("wAttendDays","attendDaysPerWeek"); g("wInternMonths","internMonths");
+  if($("wWorkStart").value) s.workStartHour = $("wWorkStart").value;
+  s.restDay = +$("wRestDay").value;
+  writeCache("settings",s); renderAll(); await pushCloud("settings"); toast("参数已保存 ✓");
+}
+$("modeMonthly").onclick = async ()=>{ if(store.settings.payMode!=="monthly"){ store.settings.payMode="monthly"; fillSettingsInputs(); renderAll(); await pushCloud("settings"); toast("已切换：月薪制 ✓"); } };
+$("modeDaily").onclick = async ()=>{ if(store.settings.payMode!=="daily"){ store.settings.payMode="daily"; fillSettingsInputs(); renderAll(); await pushCloud("settings"); toast("已切换：实习日薪制 ✓"); } };
+["oMonthly","oDaysWeek","oDailyHours","oOvertime","oCommute","oWorkCost"].forEach(id=>$(id).oninput=renderOffer);
+async function saveFund(){
+  const s=store.settings;
+  const t=parseFloat($("fTarget").value), m=parseFloat($("fSafetyMonths").value);
+  if(t>0) s.freeFundTarget=t; if(m>0) s.safetyMonths=m;
+  writeCache("settings",s); renderAll(); await pushCloud("settings"); toast("目标已保存 ✓");
+}
+function fillSettingsInputs(){
+  const s=store.settings;
+  $("wNetPay").value=s.netPay; $("wPayMonths").value=s.payMonths; $("wDaysWeek").value=s.workdaysPerWeek;
+  $("wDailyHours").value=s.dailyHours; $("wOvertime").value=s.overtimePerDay; $("wCommute").value=s.commuteOneWayMin;
+  $("wWorkCost").value=s.workCostPerDay; $("fTarget").value=s.freeFundTarget; $("fSafetyMonths").value=s.safetyMonths||6;
+  $("wDailyPay").value=s.dailyPay||200; $("wAttendDays").value=s.attendDaysPerWeek||5; $("wInternMonths").value=s.internMonths||3;
+  $("wWorkStart").value=s.workStartHour||"09:00"; $("wRestDay").value=String(s.restDay ?? 6);
+}
+
+/* ============================ 启动加载：先界面→再云端 ============================ */
+async function loadAll(){
+  // 1) 本地缓存立即渲染
+  const cr=readCache("records"), cs=readCache("settings");
+  store.records = Array.isArray(cr)?cr:[];
+  store.settings = Object.assign({}, DEFAULT_SETTINGS, (cs&&typeof cs==="object")?cs:{});
+  fillSettingsInputs(); renderAll();
+  if(cr||cs) setSync("","本地缓存 · 拉取云端…"); else setSync("","首次加载云端…");
+  // 2) 拉云端并合并
+  let okCount=0, lastErr=null;
+  for(const t of ["records","settings"]){
+    try{
+      const v = await cloudRead(t);
+      if(t==="records"){
+        if(Array.isArray(v)){
+          if(store.pending.records){
+            // 离线时有过改动：按 id 合并，本地未同步记录不丢
+            const seen=new Set(v.map(r=>r.id));
+            store.records.forEach(r=>{ if(!seen.has(r.id)) v.push(r); });
+            store.records=v.sort((a,b)=>a.ts-b.ts);
+            cloudWrite("records", store.records);
+          } else store.records = v;
+        }
+      }
+      else if(v&&typeof v==="object"){
+        // 云端为准；但若有本地未同步的编辑则不覆盖（pending 时跳过）
+        if(!store.pending.settings) store.settings = Object.assign({}, DEFAULT_SETTINGS, v);
+      }
+      writeCache(t, t==="records"?store.records:store.settings);
+      okCount++;
+    }catch(e){ lastErr=e; }
+  }
+  fillSettingsInputs(); renderAll(); firstLoadDone=true; renderRecent();
+  if(okCount===2){ setSync("ok","已同步 ✓"); $("loadHint").textContent="在线 · "+new Date().toTimeString().slice(0,5); hideBanner(); }
+  else{
+    setSync("err", okCount? "部分离线" : "读取失败");
+    showBanner(okCount?"设置或流水有一张表没拉到（"+lastErr.message+"），当前显示的是最近一次缓存。":"无法连接云端（"+(lastErr.message||"网络")+")，当前显示的是本地缓存，不影响先记一笔。");
+  }
+}
+let retryCount=0;
+async function retryWithBackoff(){
+  retryCount++;
+  toast("重试拉取云端…（第 "+retryCount+" 次）");
+  await loadAll(); retryCount=0;
+}
+
+/* ============================ 事件绑定 ============================ */
+document.querySelectorAll("nav button").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll("nav button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    ["home","wage","fund","sim","set"].forEach(t=>{ $("tab-"+t).style.display = b.dataset.tab===t?"":"none"; });
+    window.scrollTo({top:0});
+  };
+});
+$("saveBtn").onclick=()=>{ $("editId").value? saveEdit() : addRecord(); };
+$("inType").onchange=e=>{ selType=e.target.value; selCat=CATS[selType][0][0]; renderForm(); };
+$("inAmount").oninput=updateCoinHint;
+$("inAmount").addEventListener("keydown",e=>{ if(e.key==="Enter"){ $("editId").value?saveEdit():addRecord(); }});
+$("wageSave").onclick=saveWage;
+$("fundSave").onclick=saveFund;
+["sCommute","sOvertime","sRaise"].forEach(id=>$(id).oninput=renderSim);
+$("bannerRetry").onclick=()=>{ hideBanner(); flushPending(); loadAll(); };
+$("btnRefresh").onclick=()=>{ toast("刷新云端…"); loadAll(); };
+$("themeBtn").onclick=()=>{ const b=document.body; const dark=b.dataset.theme==="dark"; b.dataset.theme=dark?"light":"dark"; $("themeBtn").textContent=dark?"☀️":"🌙"; };
+$("btnExport").onclick=()=>{
+  const data={records:store.records, settings:store.settings, exportedAt:new Date().toISOString()};
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
+  a.download="打工人小账本-备份-"+new Date().toISOString().slice(0,10)+".json"; a.click();
+};
+$("btnImport").onclick=()=>$("fileImport").click();
+$("fileImport").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const j=JSON.parse(await f.text());
+    if(!Array.isArray(j.records)||!j.settings) throw new Error("格式不对");
+    store.records=j.records; store.settings=Object.assign({},DEFAULT_SETTINGS,j.settings);
+    writeCache("records",store.records); writeCache("settings",store.settings);
+    fillSettingsInputs(); renderAll(); await pushCloud("records"); await pushCloud("settings");
+    toast("导入成功，已写入云端 ✓");
+  }catch(err){ toast("导入失败："+err.message,true); }
+};
+$("btnWipe").onclick=async()=>{
+  if(!confirm("清空线上和本地的全部记录？此操作会把云端两张表清空，不可恢复。建议先导出备份。")) return;
+  store.records=[]; writeCache("records",store.records); renderAll(); await pushCloud("records"); toast("已清空");
+};
+function refreshBucketUI(){
+  $("dbInfo").textContent = CONFIG.baseUrl+"/"+CONFIG.bucket+"/"+dataKey("records").replace(/records$/,"{records|settings}");
+  $("bucketState").textContent = CONFIG.ledger==="main" ? "当前：演示共用账本（建议创建独立账本）" : "当前：独立账本 "+CONFIG.ledger;
+  let base = location.href.split("?")[0].split("#")[0];
+  $("wsLink").textContent = location.protocol==="file:" ? "（本地 file 打开无法跨设备，请部署到任意静态托管后使用）"
+    : base + (CONFIG.ledger==="main" ? "" : "?ledger=" + CONFIG.ledger);
+}
+refreshBucketUI();
+function switchLedger(code){
+  localStorage.setItem("walletx_ledger", code);
+  try{ localStorage.removeItem(LS_CACHE_RECORDS); localStorage.removeItem(LS_CACHE_SETTINGS); }catch(e){}
+  location.href = location.href.split("?")[0].split("#")[0] + "?ledger=" + code;
+}
+$("btnNewBucket").onclick = async ()=>{
+  if(CONFIG.ledger!=="main" && !confirm("已在使用独立账本 "+CONFIG.ledger+"，仍要再新建一个？当前账本数据不会带过去。")) return;
+  if(!confirm("将为你在云端新建专属的「流水表 + 设置表」，并把当前设备上已有的记录带入新账本。继续？")) return;
+  toast("正在创建在线数据表…");
+  try{
+    const code = genLedgerCode();
+    await rawWrite(code+"-records", store.records||[]);
+    await rawWrite(code+"-settings", Object.assign({},DEFAULT_SETTINGS,store.settings||{}));
+    const url = location.href.split("?")[0].split("#")[0] + "?ledger=" + code;
+    alert("独立账本创建成功 ✓\n\n账本编号：" + code + "\n\n换设备/换浏览器时，打开下面地址或输入编号即可继续使用：\n" + url);
+    switchLedger(code);
+  }catch(e){ toast("创建失败："+e.message+"（云端拒绝，请稍后重试）",true); }
+};
+$("btnJoinLedger").onclick = async ()=>{
+  const code = $("inLedger").value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,"");
+  if(!/^[A-Z0-9-]{4,30}$/.test(code)){ toast("账本编号格式不对", true); return; }
+  toast("正在打开账本 " + code + "…");
+  const v = await rawRead(code+"-records");
+  if(!Array.isArray(v)){ toast("没有找到编号为 " + code + " 的账本", true); return; }
+  const sv = await rawRead(code+"-settings");
+  switchLedger(code);
+};
+
+/* 存储有效期提醒（kvdb 免费桶 3 个月未访问 key 过期）——提示用户备份 */
+try{
+  const first=localStorage.getItem("walletx_first_seen");
+  if(!first){ localStorage.setItem("walletx_first_seen", String(Date.now())); }
+  const seen=+localStorage.getItem("walletx_first_seen")||Date.now();
+  const daysLeft=Math.ceil((seen+90*864e5-Date.now())/864e5);
+  $("retentionNote").textContent = daysLeft>0
+    ? "在线存储有效期提醒：距免费存储到期约 "+daysLeft+" 天，到期前请在「设置」导出 JSON 备份并可随时导入恢复。"
+    : "在线存储可能已过期，请立即从云端刷新验证或导入备份。";
+}catch(e){}
+
+loadAll();
+</script>
+</body>
+</html>
