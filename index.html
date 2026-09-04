@@ -610,6 +610,7 @@ function renderSim(){
   $("sRaiseV").textContent = (dRaise>=0?"+":"")+dRaise+"%";
   const ns = Object.assign({}, s, {
     netPay: +(s.netPay*(1+dRaise/100)).toFixed(0),
+    dailyPay: +((s.dailyPay||0)*(1+dRaise/100)).toFixed(1),   // 日薪制下涨薪作用于日薪
     commuteOneWayMin: Math.max(0, s.commuteOneWayMin+dCommute),
     overtimePerDay: Math.max(0, s.overtimePerDay+dOT)
   });
