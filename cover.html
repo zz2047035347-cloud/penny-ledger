@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>html,body{margin:0;padding:0;overflow:hidden;}svg{display:block;}</style>
+</head>
+<body>
+<svg id="cv" width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14213d"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fde047"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(56,189,248,.35)"/>
+      <stop offset="1" stop-color="rgba(56,189,248,0)"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.65">
+      <stop offset="0" stop-color="rgba(56,189,248,.16)"/>
+      <stop offset="1" stop-color="rgba(56,189,248,0)"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="200" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="200" fill="url(#glow)"/>
+
+  <!-- 秒表圆环（时间）刻度 -->
+  <g transform="translate(512,458)">
+    <circle r="290" fill="none" stroke="rgba(148,163,184,.30)" stroke-width="3"/>
+    <g stroke="rgba(148,163,184,.55)" stroke-width="8" stroke-linecap="round">
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(0)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(30)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(60)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(90)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(120)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(150)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(180)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(210)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(240)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(270)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(300)"/>
+      <line x1="0" y1="-290" x2="0" y2="-262" transform="rotate(330)"/>
+    </g>
+    <!-- 顶部分秒按钮：秒表意象 -->
+    <rect x="-26" y="-356" width="52" height="46" rx="12" fill="url(#cyan)"/>
+    <text id="yen" font-size="150" font-weight="800" text-anchor="middle" dominant-baseline="central" fill="url(#gold)" y="-6">¥</text>
+    <!-- 时间刻度指针（时针指向 ¥ 右上方） -->
+    <line x1="0" y1="0" x2="0" y2="0" stroke="none"/>
+  </g>
+
+  <!-- 上升存款曲线穿过表盘下部 -->
+  <g>
+    <path d="M150 700 C 340 690, 430 620, 520 560 S 760 430, 874 360 L 874 700 Z" fill="url(#area)" stroke="none"/>
+    <path d="M150 700 C 340 690, 430 620, 520 560 S 760 430, 874 360" fill="none" stroke="url(#cyan)" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="874" cy="360" r="18" fill="#34d399"/>
+  </g>
+
+  <!-- 底部字标 -->
+  <text x="512" y="866" text-anchor="middle" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-size="76" font-weight="800" letter-spacing="6" fill="#e2e8f0">打工人小账本</text>
+  <text x="512" y="930" text-anchor="middle" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-size="30" letter-spacing="2" fill="#94a3b8">你的时间，值多少钱</text>
+</svg>
+<script>
+  const S = Number(location.hash.replace("#","")) || 1024;
+  const cv = document.getElementById("cv");
+  cv.style.width = S + "px"; cv.style.height = S + "px";
+  cv.setAttribute("width", S); cv.setAttribute("height", S);
+  document.body.style.width = S + "px"; document.body.style.height = S + "px";
+  if (S <= 420) {  // 小图标版：隐藏文字标语（保留 ¥），主体放大占满
+    document.querySelectorAll("text:not(#yen)").forEach(t => t.remove());
+    const yen = document.getElementById("yen"); if (yen) yen.setAttribute("font-size", "300");
+    cv.setAttribute("viewBox", "148 148 728 728");
+  }
+</script>
+</body></html>
