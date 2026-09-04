@@ -250,6 +250,10 @@
         <div style="display:flex;align-items:flex-end"><button class="ghost" id="btnJoinLedger" style="width:100%">打开</button></div>
       </div>
       <p class="hint" style="margin-top:6px">当前账本链接（发给自己的其他设备）：<span id="wsLink" class="mini"></span></p>
+      <div class="row" style="margin-top:8px">
+        <div class="sub" id="backHint" style="display:none">想重新来过？</div>
+        <button id="btnBackMain" class="ghost" style="display:none;min-width:180px">回到公共演示账本</button>
+      </div>
       <p class="hint" style="margin-top:6px">独立账本 = 在云端新建两张专属数据表（编号-流水 + 编号-设置），你的数据与别人互不可见；把页面地址或账本编号发给另一台设备打开，即同一本账。</p>
       <p class="hint" style="margin-top:10px" id="retentionNote"></p>
     </section>
@@ -296,7 +300,9 @@ try{
   const q = new URLSearchParams(location.search);
   const ub = q.get("bucket"), ul = q.get("ledger");
   if(ub) localStorage.setItem("walletx_bucket", ub);
-  if(ul && /^[A-Za-z0-9-]{4,30}$/.test(ul)) localStorage.setItem("walletx_ledger", ul.toUpperCase());
+  if(ul){ const c = ul.trim();
+    if (c.toLowerCase() === "main") localStorage.removeItem("walletx_ledger");        // ?ledger=main = 强制回到演示公共账本
+    else if (/^[A-Z0-9-]{4,30}$/i.test(c)) localStorage.setItem("walletx_ledger", c.toUpperCase()); }
   CONFIG.bucket = localStorage.getItem("walletx_bucket") || CONFIG.bucket;
   CONFIG.ledger = localStorage.getItem("walletx_ledger") || "main";
 }catch(e){ CONFIG.ledger = "main"; }
@@ -789,11 +795,21 @@ $("btnWipe").onclick=async()=>{
 function refreshBucketUI(){
   $("dbInfo").textContent = CONFIG.baseUrl+"/"+CONFIG.bucket+"/"+dataKey("records").replace(/records$/,"{records|settings}");
   $("bucketState").textContent = CONFIG.ledger==="main" ? "当前：演示共用账本（建议创建独立账本）" : "当前：独立账本 "+CONFIG.ledger;
+  const back = CONFIG.ledger!=="main";
+  $("backHint").style.display = back ? "" : "none";
+  $("btnBackMain").style.display = back ? "" : "none";
   let base = location.href.split("?")[0].split("#")[0];
   $("wsLink").textContent = location.protocol==="file:" ? "（本地 file 打开无法跨设备，请部署到任意静态托管后使用）"
     : base + (CONFIG.ledger==="main" ? "" : "?ledger=" + CONFIG.ledger);
 }
 refreshBucketUI();
+$("btnBackMain").onclick = async ()=>{
+  const ok = await uiConfirm("回到公共演示账本？\n\n本机的记录不会删除（仍存云端），只是这台设备的浏览器改读公共账本。随时用「输入账本编号」即可切回你的独立账本。", { okText:"回到演示账本" });
+  if(!ok) return;
+  localStorage.removeItem("walletx_ledger");
+  try{ localStorage.removeItem(LS_CACHE_RECORDS); localStorage.removeItem(LS_CACHE_SETTINGS); }catch(e){}
+  location.href = location.href.split("?")[0].split("#")[0];
+};
 function switchLedger(code){
   localStorage.setItem("walletx_ledger", code);
   try{ localStorage.removeItem(LS_CACHE_RECORDS); localStorage.removeItem(LS_CACHE_SETTINGS); }catch(e){}

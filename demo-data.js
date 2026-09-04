@@ -5,17 +5,17 @@ const BUCKET = "UrzxrixVP5M6YxVgB8Sc34";
 
 // 演示参数：实习日薪制，和收入数据口径一致
 const DEMO_SETTINGS = {
-  payMode: "daily", dailyPay: 150, attendDaysPerWeek: 5, internMonths: 12,
+  payMode: "daily", dailyPay: 200, attendDaysPerWeek: 5, internMonths: 12,
   workStartHour: "09:00", restDay: 6,
-  netPay: 3250, payMonths: 12, workdaysPerWeek: 5,
+  netPay: 4333, payMonths: 12, workdaysPerWeek: 5,
   dailyHours: 8, overtimePerDay: 1, commuteOneWayMin: 40, workCostPerDay: 18,
   freeFundTarget: 100000, safetyMonths: 6
 };
 
 // [月, 日, 类型, 分类, 金额, 备注]
 const RAW = [
-  [7,15,"income","salary",3300,"7月实习工资（22天×150）"],
-  [8,15,"income","salary",3300,"8月实习工资"],
+  [7,15,"income","salary",4400,"7月实习工资（22天×200）"],
+  [8,15,"income","salary",4400,"8月实习工资"],
   [7,26,"income","parttime",180,"帮同事代做周报模板"],
   [7,1,"expense","rent",1200,"房租"], [8,1,"expense","rent",1200,"房租"], [9,1,"expense","rent",1200,"房租"],
   [7,3,"expense","transit",100,"地铁月卡充值"], [8,3,"expense","transit",100,"地铁月卡充值"],
